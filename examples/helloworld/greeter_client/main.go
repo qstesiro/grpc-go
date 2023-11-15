@@ -37,9 +37,9 @@ const (
 )
 
 var (
-	ssl  = flag.Bool("ssl", false, "tls connect")
 	addr = flag.String("addr", "localhost:50051", "the address to connect to")
 	name = flag.String("name", defaultName, "Name to greet")
+	ssl  = flag.Bool("ssl", false, "tls connect")
 )
 
 func main() {
