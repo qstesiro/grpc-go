@@ -21,6 +21,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -30,7 +31,10 @@ import (
 	pb "google.golang.org/grpc/examples/features/proto/echo"
 )
 
-const addr = "localhost:50051"
+// const addr = "localhost:50051"
+
+var port = flag.Int("port", 50051, "The server port")
+var addr = ""
 
 type ecServer struct {
 	pb.UnimplementedEchoServer
@@ -38,10 +42,13 @@ type ecServer struct {
 }
 
 func (s *ecServer) UnaryEcho(ctx context.Context, req *pb.EchoRequest) (*pb.EchoResponse, error) {
+	fmt.Printf("addr => %v\n", addr)
 	return &pb.EchoResponse{Message: fmt.Sprintf("%s (from %s)", req.Message, s.addr)}, nil
 }
 
 func main() {
+	flag.Parse()
+	addr = fmt.Sprintf("localhost:%d", *port)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

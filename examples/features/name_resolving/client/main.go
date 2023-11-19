@@ -35,7 +35,8 @@ const (
 	exampleScheme      = "example"
 	exampleServiceName = "resolver.example.grpc.io"
 
-	backendAddr = "localhost:50051"
+	backendAddr1 = "localhost:50051"
+	backendAddr2 = "localhost:50052"
 )
 
 func callUnaryEcho(c ecpb.EchoClient, message string) {
@@ -56,31 +57,41 @@ func makeRPCs(cc *grpc.ClientConn, n int) {
 }
 
 func main() {
-	passthroughConn, err := grpc.Dial(
-		fmt.Sprintf("passthrough:///%s", backendAddr), // Dial to "passthrough:///localhost:50051"
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+	// // passthrough内置实现
+	// // grpc-go/internal/resolver/passthrough/passthrough.go
+	// passthroughConn, err := grpc.Dial(
+	// 	fmt.Sprintf("passthrough:///%s", backendAddr1), // Dial to "passthrough:///localhost:50051"
+	// 	grpc.WithTransportCredentials(insecure.NewCredentials()),
+	// )
+	// if err != nil {
+	// 	log.Fatalf("did not connect: %v", err)
+	// }
+	// defer passthroughConn.Close()
+
+	// fmt.Printf("--- calling helloworld.Greeter/SayHello to \"passthrough:///%s\"\n", backendAddr1)
+	// makeRPCs(passthroughConn, 10)
+
+	// fmt.Println()
+
+	for i := 0; i < 2; i += 1 {
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+		if i%2 == 1 {
+			// 默认pick_first策略
+			opts = append(opts, grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`))
+		}
+		exampleConn, err := grpc.Dial(
+			// Dial to "example:///resolver.example.grpc.io"
+			fmt.Sprintf("%s:///%s", exampleScheme, exampleServiceName),
+			opts...,
+		)
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		defer exampleConn.Close()
+
+		fmt.Printf("--- calling helloworld.Greeter/SayHello to \"%s:///%s\"\n", exampleScheme, exampleServiceName)
+		makeRPCs(exampleConn, 10)
 	}
-	defer passthroughConn.Close()
-
-	fmt.Printf("--- calling helloworld.Greeter/SayHello to \"passthrough:///%s\"\n", backendAddr)
-	makeRPCs(passthroughConn, 10)
-
-	fmt.Println()
-
-	exampleConn, err := grpc.Dial(
-		fmt.Sprintf("%s:///%s", exampleScheme, exampleServiceName), // Dial to "example:///resolver.example.grpc.io"
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer exampleConn.Close()
-
-	fmt.Printf("--- calling helloworld.Greeter/SayHello to \"%s:///%s\"\n", exampleScheme, exampleServiceName)
-	makeRPCs(exampleConn, 10)
 }
 
 // Following is an example name resolver. It includes a
@@ -98,17 +109,24 @@ func main() {
 type exampleResolverBuilder struct{}
 
 func (*exampleResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
+	fmt.Printf("--- exampleResolverBuilder.Build\n")
 	r := &exampleResolver{
 		target: target,
 		cc:     cc,
 		addrsStore: map[string][]string{
-			exampleServiceName: {backendAddr},
+			exampleServiceName: {
+				backendAddr1,
+				backendAddr2,
+			},
 		},
 	}
 	r.start()
 	return r, nil
 }
-func (*exampleResolverBuilder) Scheme() string { return exampleScheme }
+func (*exampleResolverBuilder) Scheme() string {
+	fmt.Printf("--- exampleResolverBuilder.Scheme\n")
+	return exampleScheme
+}
 
 // exampleResolver is a
 // Resolver(https://godoc.org/google.golang.org/grpc/resolver#Resolver).
@@ -126,8 +144,14 @@ func (r *exampleResolver) start() {
 	}
 	r.cc.UpdateState(resolver.State{Addresses: addrs})
 }
-func (*exampleResolver) ResolveNow(o resolver.ResolveNowOptions) {}
-func (*exampleResolver) Close()                                  {}
+
+func (*exampleResolver) ResolveNow(o resolver.ResolveNowOptions) {
+	fmt.Printf("--- exampleResolver.ResolveNow\n")
+}
+
+func (*exampleResolver) Close() {
+	fmt.Printf("--- exampleResolver.Close\n")
+}
 
 func init() {
 	// Register the example ResolverBuilder. This is usually done in a package's
