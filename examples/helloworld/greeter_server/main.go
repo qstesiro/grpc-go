@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/examples/data"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -69,6 +70,7 @@ func main() {
 		s = grpc.NewServer()
 	}
 	pb.RegisterGreeterServer(s, &server{})
+	reflection.Register(s) // 注册反射
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

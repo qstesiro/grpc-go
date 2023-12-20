@@ -55,6 +55,12 @@
                -v $(pwd)/../data/x509/server_key.pem:/key.pem \
                --rm \
                nginx:1.21
+
+        grpcurl -plaintext localhost:50051 list
+        grpcurl -plaintext localhost:50051 describe helloworld.Greeter
+        grpcurl -plaintext localhost:50051 describe helloworld.HelloRequest
+        grpcurl -plaintext -d '{"name": "hmm", "age": 99}' localhost:50051 helloworld.Greeter/SayHello
+        grpcurl -insecure -d '{"name": "hmm", "age": 99}' localhost:50051 helloworld.Greeter/SayHello
     }
 
     # grpc-authentication
